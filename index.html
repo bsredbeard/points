@@ -20,35 +20,70 @@ main {
     position: relative;
 }
 .card {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 100%;
-  font-size: 40vw;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  transform: translateX(0);
-  transition-property: opacity,transform;
-  transition-duration: 0.25s;
-  transition-timing-function: linear,ease-out;
-  user-select: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100%;
+    font-size: 40vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transform: translateX(0);
+    transition-property: opacity,transform;
+    transition-duration: 0.25s;
+    transition-timing-function: linear,ease-out;
+    user-select: none;
 }
 .card.current {
-  opacity: 1;
+    opacity: 1;
 }
 .card.next {
-  transform: translateX(50vw) rotateY(75deg);
+    transform: translateX(50vw) rotateY(75deg);
 }
 .card.prev {
-  transform: translateX(-50vw) rotateY(-75deg);
+    transform: translateX(-50vw) rotateY(-75deg);
 }
 aside {
-    display: none;
+    height: 100%;
+    padding: 1rem;
+    box-sizing: border-box;
+    transform: translateY(0);
+    transition: 0.35s transform ease-out;
+    background-color: #252525;
 }
-        
+aside.visible {transform: translateY(-100vh);}
+aside .chrome {display: flex;align-items:flex-start;justify-content:space-between;}
+aside h1 {margin:0;font-size:1.6rem;}
+aside h1>small {display:block;font-weight:normal;font-size:0.85rem;font-style:italic;}
+aside h2 { font-size: 1.35rem; }
+aside button.close {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid white;
+    background-color: transparent;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+aside label {margin-bottom:1.5rem;font-size:1.2rem;display:flex;align-items:flex-start;cursor:pointer;}
+aside input[type="text"] {font-size:1.2rem;border-radius:8px;padding-left:0.5rem;}
+aside input[type="radio"] {margin-right:0.75rem;margin-top:0.45rem;}
+aside .grow {flex-grow:1; display:flex;}
+aside .grow>* {flex-grow:1;}
+aside .help {display:none;font-size:0.95rem;font-style:italic;}
+#launcher {
+    position:absolute;
+    bottom: 10px;
+    left: 10px;
+    padding: 1rem;
+    border-radius: 50%;
+    background-color: transparent;
+    border: 1px solid white;
+}
         </style>
     </head>
     <body>
@@ -56,16 +91,19 @@ aside {
             <div v-for="(card, idx) in cards"
                  :class="{card: true, current: idx === selected, next: isNext(card), prev: isPrev(card)}">{{card}}</div>
             </div>
+            <button id="launcher" v-on:click.stop.prevent="showSettings">
+                💭
+            </button>
         </main>
-        <aside id="settings" class="visible">
+        <aside id="settings" :class="{visible: isVisible}">
             <section class="chrome">
-                <button class="close">&times;</button>
-            </section>
-            <section class="content">
                 <h1>
                     Points!
                     <small>A phone application for estimating complexity</small>
                 </h1>
+                <button class="close" @click="isVisible = false">&times;</button>
+            </section>
+            <section class="content">
                 <h2>Instructions</h2>
                 <ul>
                     <li>Choose a set of points from the list below (or enter your own)</li>
@@ -74,24 +112,22 @@ aside {
                     <li>Access this dialog at any time by clicking on the 💭 icon</li>
                 </ul>
                 <h2>Point Values</h2>
-                <div>
-                    <label>
-                        <input type="radio" name="selectedValues" value="0 ½ 1 2 3 5 8 13 20 100 ∞" />
-                        0 ½ 1 2 3 5 8 13 20 100 ∞
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        <input type="radio" name="selectedValues" value="custom" />
-                        <input type="text" name="customValues" value="0 ½ 1 2 3 5 8 13 20 100 ∞">
-                    </label>
-                </div>
+                <label>
+                    <input type="radio" name="selectedValues" value="0 ½ 1 2 3 5 8 13 20 100 ∞" v-model="selected" />
+                    0 ½ 1 2 3 5 8 13 20 100 ∞
+                </label>
+                <label>
+                    <input type="radio" name="selectedValues" value="custom" v-model="selected" />
+                    <div class="grow">
+                        <input type="text" name="customValues" v-model="customValues" @focus="selected='custom'">
+                    </div>
+                </label>
             </section>
         </aside>
         <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
         <script src="https://unpkg.com/hammerjs@2.0.6/hammer.js"></script>
         <script type="text/javascript">
-            var app = new Vue({
+            var settings, app = new Vue({
                 el: '#app',
                 data: {
                     cards: ['0', '½', '1', '2', '3', '5', '8', '13', '20', '100', '∞'],
@@ -117,13 +153,39 @@ aside {
                         return this.selected === this.cards.length - 1 ?
                             idx === 0 :
                             idx === this.selected + 1;
+                    },
+                    showSettings: function(){
+                        settings.isVisible = true;
+                    }
+                }
+            });
+
+            settings = new Vue({
+                el: '#settings',
+                data: {
+                    isVisible: true,
+                    selected: '0 ½ 1 2 3 5 8 13 20 100 ∞',
+                    customValues: '0 0.5 1 2 3 5 8 13 20 100 ?'
+                },
+                computed: {
+                    cardValues: function(){
+                        const selectedOption = this.selected;
+                        const customValues = this.customValues;
+                        return (selectedOption === 'custom' ? customValues : selectedOption)
+                            .split(' ')
+                            .filter(v => !!v);
+                    }
+                },
+                watch: {
+                    cardValues: function(val){
+                        app.cards.splice(0, app.cards.length, ...val);
+                        app.selected = Math.floor(val.length / 2);
                     }
                 }
             });
 
             var swipeDetection = new Hammer(app.$el);
             swipeDetection.on('tap', function(e){
-                console.log('TAP!');
                 app.swipeLeft();
             });
             swipeDetection.on('swipe', function(e){
